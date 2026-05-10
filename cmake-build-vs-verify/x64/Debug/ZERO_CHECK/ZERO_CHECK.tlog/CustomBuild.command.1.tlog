@@ -1,0 +1,10 @@
+^C:\USERS\HADEEL\DOWNLOADS\DANGEROUS-DAVE-2\CMAKE-BUILD-VS-VERIFY\CMAKEFILES\12795316F741BA29D69EC0B819FAB2EA\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\JetBrains\CLion 2026.1\bin\cmake\win\x64\bin\cmake.exe" -SC:/Users/Hadeel/Downloads/Dangerous-Dave-2 -BC:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-vs-verify --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-vs-verify/Dangerous-Dave-2.slnx
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

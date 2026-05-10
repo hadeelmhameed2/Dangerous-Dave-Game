@@ -1,0 +1,33 @@
+/**
+@mainpage Dangerous Dave 2 - One Stage Demo
+
+@section intro Introduction
+This repository contains a **playable one-stage demo** for the Dangerous Dave assignment.
+It is designed to build directly in **CLion on Windows** with **CMake**.
+
+@section features Features
+- One self-contained level
+- Keyboard movement and jumping
+- Collectibles and bonuses
+- Moving enemies and a hazard
+- HUD panel showing lives and score from `PlayerStats`
+- Trophy pickup that unlocks the exit door
+- Door unlock pulse animation before the exit becomes active
+- Sprite-based center banners (with optional dedicated banner textures)
+- Win / lose / restart flow
+- No sound usage
+- Doxygen-style documentation for the submission
+
+@section build Build and run
+Open the project in CLion and press the green Run button next to `Dangerous_Dave_Mockup`.
+
+The runtime HUD uses the `res/ui.png` asset, while the trophy and door states use the textures in `res/`.
+
+To generate documentation with Doxygen:
+@code
+Doxygen Doxyfile
+@endcode
+
+The generated HTML will be placed under `docs/html`.
+*/
+

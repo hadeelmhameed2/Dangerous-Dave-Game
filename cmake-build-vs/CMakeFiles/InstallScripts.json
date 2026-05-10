@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-vs/cmake_install.cmake",
+		"C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-vs/lib/box2d/cmake_install.cmake",
+		"C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-vs/lib/box2d/src/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

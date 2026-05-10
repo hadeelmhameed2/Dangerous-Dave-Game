@@ -1,0 +1,24 @@
+PROJECT_NAME           = "Dangerous Dave 2"
+PROJECT_BRIEF          = "Playable one-stage Dave demo for CLion submission"
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX          = NO
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+INPUT                  = main.cpp Dave.h DaveRunner.cpp sdl_compat.h sdl_compat.cpp DaveModule.h DaveModule.cpp bagel.h docs/mainpage.dox README.md
+FILE_PATTERNS          = *.cpp *.h *.dox *.md
+RECURSIVE              = NO
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = YES
+REFERENCED_BY_RELATION  = YES
+REFERENCES_RELATION     = YES
+ALPHABETICAL_INDEX     = YES
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        = C:/Users/Hadeel/Downloads/Dangerous-Dave-2
+HTML_TIMESTAMP         = NO
+

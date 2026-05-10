@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Hadeel\Downloads\Dangerous-Dave-2\cmake-build-vs-verify\CMakeFiles\017b5249638bd4b9e18fcb6041207c37\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{1DD8A5F5-41D1-3F73-BB1D-D10D92CD55BD}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
