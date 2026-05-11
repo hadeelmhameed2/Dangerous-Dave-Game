@@ -538,12 +538,12 @@ void Game::player_system()
     else
     {
         pdat.walkAnimTimer = 0;
-        pdat.walkAnimIdx = 0;
-        spr.tex = m_tex.daveStand;
+        SDL_Texture* tex = m_tex.daveWalk[pdat.walkAnimIdx];
+        spr.tex = tex ? tex : m_tex.daveStand;
     }
-    // Walk frames are authored facing right; idle (Dave.png) and jump (dave5) face left.
-    // Invert the flip for the latter two so every state faces the direction Dave is moving.
-    const bool leftFacingArt = (spr.tex == m_tex.daveJump || spr.tex == m_tex.daveStand);
+    // Walk frames are authored facing right; jump (dave5) faces left.
+    // Invert the flip for jump so every state faces the direction Dave is moving.
+    const bool leftFacingArt = (spr.tex == m_tex.daveJump);
     spr.flipH = leftFacingArt ? (pdat.facing > 0) : (pdat.facing < 0);
 }
 
@@ -710,10 +710,10 @@ void Game::door_system()
         {
             dd.animating = false;
             dd.unlocked = true;
-            spr.tex = dd.openTex ? dd.openTex : dd.closedTex;
         }
         return;
     }
+    (void)spr;
 
     // Player-enters-door is handled in sensor_event_system.
     (void)dd;
