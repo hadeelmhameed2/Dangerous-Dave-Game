@@ -1,18 +1,37 @@
 /**
  * @file Game.h
- * @brief Dangerous Dave — clean ECS rebuild. Components, factories, and Game class.
+ * @brief Components, factories, and Game class.
  */
 
 #pragma once
 
 #include "bagel.h"
-#include "sdl_compat.h"
+#include <SDL3/SDL.h>
+#include <box2d/box2d.h>
 
 #include <array>
-#include <string>
-#include <vector>
 
 namespace dave {
+
+// 1 meter = kTileSize px. Box2D coords = world pixels / BOX_SCALE.
+constexpr float BOX_SCALE = 32.0f;
+constexpr float BOX_GRAVITY = 40.0f;  // m/s^2, +Y is down on screen.
+constexpr int   FPS = 60;
+constexpr float BOX_STEP = 1.0f / FPS;
+
+// Collision categories. Player vs enemy/bullet uses AABB; pickups/hazards/door use sensor events.
+constexpr std::uint64_t CAT_TILE   = 0x0001;
+constexpr std::uint64_t CAT_PLAYER = 0x0002;
+constexpr std::uint64_t CAT_ENEMY  = 0x0004;
+constexpr std::uint64_t CAT_BULLET = 0x0008;
+constexpr std::uint64_t CAT_SENSOR = 0x0010;
+
+// User-data sentinels on Box2D bodies, read by sensor_event_system:
+//   null → hazard tile sensor
+//   1    → player body (the visitor)
+//   id+2 → entity-based sensor (pickup / door / trophy)
+constexpr std::uintptr_t UDATA_PLAYER   = 1;
+constexpr std::uintptr_t UDATA_ENTITY_BASE = 2;
 
 constexpr int kTileSize    = 32;
 constexpr int kLevelCols   = 100;
@@ -22,7 +41,7 @@ constexpr int kScreenH     = 600;
 constexpr int kHudH        = 40;
 constexpr int kWorldW      = kLevelCols * kTileSize;  // 3200
 constexpr int kWorldH      = kLevelRows * kTileSize;  // 448
-constexpr int kPlayfieldOffsetY = kScreenH - kWorldH; // 152 — pad below HUD so floor sits at bottom
+constexpr int kPlayfieldOffsetY = kScreenH - kWorldH; // 152 — pad below HUD so floor sits at screen bottom.
 
 enum class TileKind : std::uint8_t {
     EMPTY = 0,
@@ -50,7 +69,6 @@ enum class GameState : std::uint8_t {
 // --- Components ---
 
 struct Position { float x = 0; float y = 0; };
-struct Velocity { float vx = 0; float vy = 0; };
 struct Box      { float w = 0; float h = 0; };
 
 struct Sprite {
@@ -58,6 +76,7 @@ struct Sprite {
     int z = 0;
     bool flipH = false;
     bool visible = true;
+    Uint8 tintR = 255, tintG = 255, tintB = 255;  // Color mod; 255 = no tint.
 };
 
 struct Anim {
@@ -77,7 +96,7 @@ struct PlayerData {
     bool hasTrophy = false;
     bool hasGun = false;
     int  ammo = 0;
-    int  facing = 1;          // 1 right, -1 left
+    int  facing = 1;          // 1 = right, -1 = left.
     bool moving = false;
     int  walkAnimTimer = 0;
     int  walkAnimIdx = 0;
@@ -99,13 +118,17 @@ struct DoorData {
     SDL_Texture* openTex = nullptr;
 };
 
+enum class EnemyKind : std::uint8_t { GROUND, FLYING };
+
 struct EnemyData {
+    EnemyKind kind = EnemyKind::GROUND;
     float patrolMin = 0;
     float patrolMax = 0;
     float speed = 0;
     int dir = 1;
     bool alive = true;
     int shootCooldown = 0;
+    float phase = 0;     // FLYING: sine phase so multiple flyers desync.
 };
 
 struct BulletData {
@@ -115,14 +138,28 @@ struct BulletData {
     bool alive = true;
 };
 
+// Box2D body handle for dynamic entities (player, enemies, bullets).
+struct Collider { b2BodyId b; };
+
+// Input intent. input_system writes held state; player_system reads it and does edge detection.
+struct Intent {
+    bool left = false;
+    bool right = false;
+    bool jumpHeld = false;
+    bool shoot = false;
+};
+
+// Per-entity keybinds. jumpAlt is optional (SDL_SCANCODE_UNKNOWN if unused).
+struct Keys {
+    SDL_Scancode left, right, jump, jumpAlt, shoot;
+};
+
 }  // namespace dave
 
-// Storage selections. Most components are sparse-by-id since we use small entity counts and
-// look them up by id more often than we iterate. Velocity/Anim are updated per-frame for many
-// movers so we use packed storage for cache locality.
+// Storage selections. Per-frame iterated components (Anim, Intent, Keys) use PackedStorage
+// for cache locality; the rest are SparseStorage (lookup by id).
 namespace bagel {
     template <> struct Storage<::dave::Position>   { using type = SparseStorage<::dave::Position>; };
-    template <> struct Storage<::dave::Velocity>   { using type = PackedStorage<::dave::Velocity>; };
     template <> struct Storage<::dave::Box>        { using type = SparseStorage<::dave::Box>; };
     template <> struct Storage<::dave::Sprite>     { using type = SparseStorage<::dave::Sprite>; };
     template <> struct Storage<::dave::Anim>       { using type = PackedStorage<::dave::Anim>; };
@@ -131,11 +168,14 @@ namespace bagel {
     template <> struct Storage<::dave::DoorData>   { using type = SparseStorage<::dave::DoorData>; };
     template <> struct Storage<::dave::EnemyData>  { using type = SparseStorage<::dave::EnemyData>; };
     template <> struct Storage<::dave::BulletData> { using type = SparseStorage<::dave::BulletData>; };
+    template <> struct Storage<::dave::Collider>   { using type = SparseStorage<::dave::Collider>; };
+    template <> struct Storage<::dave::Intent>     { using type = PackedStorage<::dave::Intent>; };
+    template <> struct Storage<::dave::Keys>       { using type = PackedStorage<::dave::Keys>; };
 }
 
 namespace dave {
 
-/// All textures loaded by main.cpp once and consumed read-only by the Game.
+/// Textures loaded once by main.cpp, consumed read-only by Game.
 struct TextureRegistry {
     SDL_Texture* daveStand = nullptr;
     std::array<SDL_Texture*, 4> daveWalk{};   // dave1..dave4
@@ -154,42 +194,41 @@ struct TextureRegistry {
     SDL_Texture* enemy = nullptr;
     SDL_Texture* bullet = nullptr;
     SDL_Texture* monsterBullet = nullptr;
-    SDL_Texture* cloud = nullptr;
-    SDL_Texture* cloud2 = nullptr;
-    SDL_Texture* background = nullptr;
     std::array<SDL_Texture*, 10> digit{};
     SDL_Texture* labelScore = nullptr;
     SDL_Texture* labelLives = nullptr;
     SDL_Texture* labelLevel = nullptr;
-    SDL_Texture* labelGun = nullptr;
 };
 
 class Game {
 public:
     Game(SDL_Renderer* ren, const TextureRegistry& tex);
+    ~Game();
     void run();
 
 private:
     void resetLevel();
     void buildLevelFromAscii();
+    void buildStaticTileBodies();
+    void box_system();
+    void sensor_event_system();
+    bool playerGrounded() const;
     void spawnPlayer(int col, int row);
     bagel::ent_type spawnPickup(int col, int row, PickupKind kind);
-    bagel::ent_type spawnEnemy(int col, int row);
+    bagel::ent_type spawnEnemy(int col, int row, EnemyKind kind = EnemyKind::GROUND);
     bagel::ent_type spawnDoor(int col, int row);
     bagel::ent_type spawnBullet(float x, float y, int dir, bool fromPlayer);
 
-    void readInput();
+    void input_system();
     void update();
-    void updatePlayer();
-    void updateEnemies();
-    void updateBullets();
-    void updateAnimations();
-    void resolveTileCollisions(Position& pos, Velocity& vel, const Box& box, bool& grounded, bool& diedToHazard);
-    void handlePickups();
-    void checkHazards();
-    void checkDoor();
+    void player_system();
+    void enemy_system();
+    void bullet_system();
+    void anim_system();
+    void hazard_system();
+    void door_system();
 
-    void render();
+    void draw_system();
     void renderBackground();
     void renderTiles();
     void renderEntity(bagel::ent_type ent);
@@ -197,10 +236,9 @@ private:
     void renderEndBanner();
 
     void killPlayer();
-    void cameraUpdate();
+    void camera_system();
 
     bool tileSolid(int col, int row) const;
-    bool tileHazard(int col, int row) const;
     TileKind tileAt(int col, int row) const;
 
     SDL_Renderer* m_renderer;
@@ -211,25 +249,14 @@ private:
     bagel::ent_type m_player{ {-1} };
     bagel::ent_type m_door{ {-1} };
     bagel::ent_type m_trophy{ {-1} };
-    std::vector<bagel::ent_type> m_pickups;
-    std::vector<bagel::ent_type> m_enemies;
-    std::vector<bagel::ent_type> m_bullets;
 
+    b2WorldId m_world = b2_nullWorldId;
     float m_camX = 0;
-    int m_animTick = 0;          // global tick for tile animations
+    int m_animTick = 0;          // Global tick for tile/sprite animations.
 
-    struct Input {
-        bool left = false;
-        bool right = false;
-        bool jumpHeld = false;
-        bool jumpPressed = false;
-        bool shoot = false;
-        bool shootPressed = false;
-        bool exit = false;
-    } m_input;
     bool m_prevJumpHeld = false;
     bool m_prevShoot = false;
-    int  m_jumpBuffer = 0;     // frames remaining where a queued jump will auto-fire on landing
+    int  m_jumpBuffer = 0;     // Buffered jump auto-fires on landing within N frames.
 
     GameState m_state = GameState::PLAYING;
     int  m_stateTimer = 0;

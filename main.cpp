@@ -4,7 +4,8 @@
  */
 
 #include "Game.h"
-#include "sdl_compat.h"
+#include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
 
 #include <iostream>
 #include <string>
@@ -12,7 +13,9 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -116,11 +119,6 @@ void loadAll(SDL_Renderer* renderer, dave::TextureRegistry& reg)
     reg.monsterBullet = L("monsterBullet.png", false);
     if (!reg.monsterBullet) reg.monsterBullet = reg.bullet;
 
-    reg.cloud      = L("Cloud.png", false);
-    reg.cloud2     = L("Cloud1.png", false);
-    if (!reg.cloud2) reg.cloud2 = reg.cloud;
-    reg.background = L("back.png", false);
-
     for (int i = 0; i < 10; ++i)
     {
         reg.digit[i] = L(std::to_string(i) + ".png", false);
@@ -129,7 +127,6 @@ void loadAll(SDL_Renderer* renderer, dave::TextureRegistry& reg)
     reg.labelScore = L("score.png", false);
     reg.labelLives = L("lives.png", false);
     reg.labelLevel = L("levelanddaves.png", false);
-    reg.labelGun   = L("gunText.png", false);
 }
 
 }  // namespace
@@ -161,8 +158,7 @@ int main(int argc, char* argv[])
         game.run();
     }
 
-    // Texture cleanup is intentionally minimal — process exit reclaims everything.
-    // (Many registry slots share textures; tracking dedup ownership isn't worth it for this demo.)
+    // Skip per-texture cleanup — process exit reclaims them, and many slots share textures.
     (void)window;
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

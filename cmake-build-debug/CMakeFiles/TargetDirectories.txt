@@ -1,3 +1,0 @@
-C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-debug/CMakeFiles/Dangerous_Dave.dir
-C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-debug/CMakeFiles/rebuild_cache.dir

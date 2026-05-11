@@ -1,1 +1,79 @@
+# ---- Build directories ----
+build/
+build-*/
+out/
+bin/
+cmake-build-*/
+
+# ---- CMake ----
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+Testing/
+_deps/
+*.cmake
+!CMakeLists.txt
+
+# ---- Ninja / Make ----
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+Makefile
+
+# ---- Compiled binaries & objects ----
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.so
+*.dylib
+*.dll
+*.lib
+*.a
+*.pdb
+*.ilk
+*.exp
+
+# ---- IDE: CLion / IntelliJ ----
+.idea/
+*.iml
+
+# ---- IDE: Visual Studio / VS Code ----
+.vs/
+.vscode/
+*.vcxproj*
+*.sln
+*.suo
+*.user
+
+# ---- IDE: Qt Creator / Xcode ----
+*.autosave
+*.xcodeproj/
+*.xcworkspace/
+
+# ---- Doxygen output ----
+docs/html/
+docs/latex/
+docs/xml/
+
+# ---- Logs & temp files ----
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# ---- OS files ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# ---- Misc ----
 *.md

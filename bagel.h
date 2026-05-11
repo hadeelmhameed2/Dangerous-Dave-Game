@@ -1,24 +1,49 @@
-/**
- * @file bagel.h
- * @brief Lightweight ECS helper templates used by the Dangerous Dave assignment.
- */
+// Copyright (C) 2026 Moshe Sulamy
 
 #pragma once
 #include <cstdlib>
+#include <cstdint>
+#include <type_traits>
 #include <algorithm>
 
 namespace bagel
 {
-	using id_type = int;
-	using ent_type = struct { id_type id; };
+	/**** Parameters ****/
+	constexpr int	MaxComponents = 32;
+	constexpr bool	DynamicBags = true;
+	/** end parameters **/
 
-	struct NoInstance { 	NoInstance() = delete; };
+	using id_type = int;
+	struct ent_type { id_type id; };
+	using mask_type =
+		std::conditional_t<MaxComponents<=8, std::uint_fast8_t,
+		std::conditional_t<MaxComponents<=16, std::uint_fast16_t,
+		std::conditional_t<MaxComponents<=32, std::uint_fast32_t,
+			std::uint_fast64_t>>>;
+
+
+	struct NoInstance {	NoInstance() = delete; };
 	struct NoCopy {
 		NoCopy() = default; // default constructor
 		NoCopy(const NoCopy&) = delete;
 		NoCopy& operator=(const NoCopy&) = delete;
 	};
 
+	template <class T, int N>
+	class StaticBag
+	{
+	public:
+		int size() const { return _size; }
+		static void ensure(int) {}
+		void push(const T& val) { _arr[_size++] = val; }
+		T pop() { return _arr[--_size]; }
+
+		T& operator[](int idx) { return _arr[idx]; }
+		const T& operator[](int idx) const { return _arr[idx]; }
+	private:
+		T	_arr[N];
+		int _size = 0;
+	};
 	template <class T, int N>
 	class DynamicBag : NoCopy
 	{
@@ -50,36 +75,43 @@ namespace bagel
 		T& operator[](int idx) { return _arr[idx]; }
 		const T& operator[](int idx) const { return _arr[idx]; }
 	private:
-		T* 		_arr = static_cast<T*>(
-			malloc(sizeof(T) * N));
-		int 		_size = 0;
-		int 		_capacity = N;
+		T*		_arr = static_cast<T*>(malloc(sizeof(T) * N));
+		int		_size = 0;
+		int		_capacity = N;
 	};
+
+	template <class T, int N>
+	using Bag = std::conditional_t<DynamicBags, DynamicBag<T,N>, StaticBag<T,N>>;
+
+	using DeleteFunc = void (*)(ent_type);
+	template <class T> struct Register;
 
 	template <class T>
 	class SparseStorage final : NoInstance
 	{
 	public:
 		static void add(ent_type ent, const T& val) {
-			_comps.ensure(ent.id);
+			_comps.ensure(ent.id+1);
 			_comps[ent.id] = val;
 		}
+		static void del(ent_type) {}
 		static T& get(ent_type ent) {
 			return _comps[ent.id];
 		}
 	private:
-		static inline DynamicBag<T,100> _comps;
+		static inline Bag<T,100> _comps;
+		__attribute__((used)) static inline Register<T> _reg{nullptr};
 	};
 	template <class T>
 	class TaggedStorage final : NoInstance
 	{
 	public:
-		static void add(ent_type ent, const T& val) {
-			//TODO: tag entity
-		}
+		static void add(ent_type, const T&) {}
+		static void del(ent_type) {}
+		static T& get(ent_type) = delete;
 	private:
+		__attribute__((used)) static inline Register<T> _reg{nullptr};
 	};
-
 	template <class T>
 	class PackedStorage final : NoInstance
 	{
@@ -102,9 +134,10 @@ namespace bagel
 			return _comps[_idToComp[ent.id]];
 		}
 	private:
-		static inline DynamicBag<T,100> _comps;
-		static inline DynamicBag<int,100> _idToComp;
-		static inline DynamicBag<id_type,100> _compToId;
+		static inline Bag<T,100> _comps;
+		static inline Bag<int,100> _idToComp;
+		static inline Bag<id_type,100> _compToId;
+		__attribute__((used)) static inline Register<T> _reg{del};
 	};
 	template <class T>
 	class StackStorage final : NoInstance
@@ -131,14 +164,42 @@ namespace bagel
 			return _comps[_idToComp[ent.id]];
 		}
 	private:
-		static inline DynamicBag<T,100> _comps;
-		static inline DynamicBag<int,100> _idToComp;
-		static inline DynamicBag<id_type,100> _freeIdx;
+		static inline Bag<T,100> _comps;
+		static inline Bag<int,100> _idToComp;
+		static inline Bag<id_type,100> _freeIdx;
+		__attribute__((used)) static inline Register<T> _reg{del};
 	};
 
 	template <class T>
 	struct Storage final : NoInstance {
 		using type = SparseStorage<T>;
+	};
+
+	class Mask final
+	{
+	public:
+		using bit_type = mask_type;
+		static constexpr bit_type bit(const int idx) { return 1<<idx; }
+
+		void set(const bit_type b) { _mask |= b; }
+
+		void clear(const bit_type b) { _mask &= ~b; }
+		void clear() { _mask = 0; }
+
+		bool test(const bit_type b) const { return _mask & b; }
+		bool test(const Mask m) const { return (_mask & m._mask) == m._mask; }
+
+		int ctz() const { return _mask ? __builtin_ctz(_mask) : -1; }
+	private:
+		mask_type	_mask{0};
+	};
+
+	static inline int compCounter = -1;
+	template <class>
+	struct Component final : NoInstance
+	{
+		static inline const int				Index = ++compCounter;
+		static inline const Mask::bit_type	Bit = Mask::bit(Index);
 	};
 
 	class World final : NoInstance
@@ -147,14 +208,113 @@ namespace bagel
 		static ent_type createEntity() {
 			if (_ids.size() > 0)
 				return {_ids.pop()};
+			_masks.push(Mask{});
 			return {++_maxId};
 		}
 		static void deleteEntity(ent_type ent) {
+			Mask m = _masks[ent.id];
+			int ctz;
+			while ((ctz = m.ctz()) >= 0) {
+				if (_deleters[ctz] != nullptr)
+					_deleters[ctz](ent);
+				m.clear(Mask::bit(ctz));
+			}
+			_masks[ent.id].clear();
 			_ids.push(ent.id);
-			//TODO: delete components
 		}
+
+		static const Mask& mask(ent_type e) {
+			return _masks[e.id];
+		}
+		template <class T>
+		static T& getComponent(ent_type e) {
+			return Storage<T>::type::get(e);
+		}
+		template <class T>
+		static void addComponent(ent_type ent, const T& comp) {
+			_masks[ent.id].set(Component<T>::Bit);
+			Storage<T>::type::add(ent,comp);
+		}
+		template <class T>
+		static void delComponent(ent_type ent, const T& comp) {
+			_masks[ent.id].clear(Component<T>::Bit);
+			Storage<T>::type::del(ent,comp);
+		}
+
+		template <class T>
+		static void registerDeleter(DeleteFunc func) {
+			while (_deleters.size() < Component<T>::Index+1)
+				_deleters.push(nullptr);
+			_deleters[Component<T>::Index] = func;
+		}
+
+		static id_type maxId() { return _maxId; }
 	private:
-		static inline DynamicBag<id_type,100> _ids;
+		static inline Bag<Mask,100>		_masks;
+		static inline Bag<id_type,100>	_ids;
+		static inline Bag<DeleteFunc,10> _deleters;
 		static inline id_type _maxId = -1;
+	};
+
+	template <class T> struct Register
+	{
+		explicit Register(const DeleteFunc func) {
+			World::registerDeleter<T>(func);
+		}
+	};
+
+	class MaskBuilder
+	{
+	public:
+		template <class T>
+		MaskBuilder& set() {
+			m.set(Component<T>::Bit);
+			return *this;
+		}
+		Mask build() const { return m; }
+	private:
+		Mask m;
+	};
+
+	class Entity
+	{
+	public:
+		Entity(ent_type ent) : _ent(ent) {}
+		ent_type entity() const { return _ent; }
+
+		static Entity create() { return World::createEntity(); }
+		void destroy() const { World::deleteEntity(_ent); }
+
+		const Mask& mask() const { return World::mask(_ent); }
+
+		template <class T> T& get() const {
+			return World::getComponent<T>(_ent);
+		}
+		template <class T> void add(const T& val) const {
+			World::addComponent<T>(_ent,val);
+		}
+		template <class T> void del() const {
+			World::delComponent<T>(_ent);
+		}
+
+		template <class T, class ...Ts> void addAll(const T& val, const Ts&... vals) const {
+			add(val);
+			if constexpr (sizeof...(Ts)>0)
+				addAll(vals...);
+		}
+		template <class T, class ...Ts> void delAll() const {
+			del<T>();
+			if constexpr (sizeof...(Ts)>0)
+				del<Ts...>();
+		}
+
+		template <class T> bool has() const { return mask().test(Component<T>::Bit); }
+		bool test(const Mask& m) const { return mask().test(m); }
+
+		static Entity first() { return Entity{{0}}; }
+		bool eof() const { return _ent.id > World::maxId(); }
+		void next() { ++_ent.id; }
+	private:
+		ent_type _ent;
 	};
 }

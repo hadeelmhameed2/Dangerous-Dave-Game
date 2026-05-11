@@ -1,3 +1,0 @@
-C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-new/CMakeFiles/Dangerous_Dave.dir
-C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-new/CMakeFiles/ALL_BUILD.dir
-C:/Users/Hadeel/Downloads/Dangerous-Dave-2/cmake-build-new/CMakeFiles/ZERO_CHECK.dir
