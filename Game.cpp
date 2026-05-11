@@ -345,7 +345,6 @@ bagel::ent_type Game::spawnDoor(int col, int row)
 
     DoorData d;
     d.closedTex = m_tex.doorClosed;
-    d.openTex   = m_tex.doorOpen ? m_tex.doorOpen : m_tex.doorClosed;
 
     bagel::Entity e = bagel::Entity::create();
     e.addAll(pos, box, spr, a, d);
@@ -538,7 +537,8 @@ void Game::player_system()
     else
     {
         pdat.walkAnimTimer = 0;
-        SDL_Texture* tex = m_tex.daveWalk[pdat.walkAnimIdx];
+        pdat.walkAnimIdx = 0;
+        SDL_Texture* tex = m_tex.daveWalk[0];
         spr.tex = tex ? tex : m_tex.daveStand;
     }
     // Walk frames are authored facing right; jump (dave5) faces left.
@@ -701,7 +701,6 @@ void Game::door_system()
     if (m_door.id < 0) return;
 
     auto& dd = bagel::Storage<DoorData>::type::get(m_door);
-    auto& spr = bagel::Storage<Sprite>::type::get(m_door);
 
     if (dd.animating)
     {
@@ -711,12 +710,8 @@ void Game::door_system()
             dd.animating = false;
             dd.unlocked = true;
         }
-        return;
     }
-    (void)spr;
-
     // Player-enters-door is handled in sensor_event_system.
-    (void)dd;
 }
 
 void Game::anim_system()

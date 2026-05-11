@@ -111,8 +111,6 @@ void loadAll(SDL_Renderer* renderer, dave::TextureRegistry& reg)
     for (auto& c : reg.cup) if (!c) c = reg.cup[0];
 
     reg.doorClosed = L("door.png");
-    reg.doorOpen   = L("door1.png", false);
-    if (!reg.doorOpen) reg.doorOpen = reg.doorClosed;
 
     reg.enemy         = L("monster.png", false);
     reg.bullet        = L("weapon.png", false);

@@ -115,7 +115,6 @@ struct DoorData {
     bool animating = false;
     int  animFrames = 0;
     SDL_Texture* closedTex = nullptr;
-    SDL_Texture* openTex = nullptr;
 };
 
 enum class EnemyKind : std::uint8_t { GROUND, FLYING };
@@ -190,7 +189,6 @@ struct TextureRegistry {
     SDL_Texture* gun = nullptr;
     std::array<SDL_Texture*, 5> cup{};
     SDL_Texture* doorClosed = nullptr;
-    SDL_Texture* doorOpen = nullptr;
     SDL_Texture* enemy = nullptr;
     SDL_Texture* bullet = nullptr;
     SDL_Texture* monsterBullet = nullptr;
