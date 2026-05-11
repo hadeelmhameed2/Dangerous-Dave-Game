@@ -77,3 +77,6 @@ $RECYCLE.BIN/
 
 # ---- Misc ----
 *.md
+
+# ---- Vendored dependencies: never ignore anything under lib/ ----
+!lib/**
