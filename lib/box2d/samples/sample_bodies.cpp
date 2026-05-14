@@ -26,7 +26,7 @@ public:
 		b2BodyId groundId = b2_nullBodyId;
 		{
 			b2BodyDef bodyDef = b2DefaultBodyDef();
-			bodyDef.name = "ground";
+			bodyDef.name = ";
 			groundId = b2CreateBody( m_worldId, &bodyDef );
 
 			b2Segment segment = { { -20.0f, 0.0f }, { 20.0f, 0.0f } };

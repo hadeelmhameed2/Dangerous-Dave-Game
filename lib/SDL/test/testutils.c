@@ -41,7 +41,7 @@ static const struct
     { "gamepad_touchpad.png", "GP_TOUCH.PNG" },
     { "gamepad_button.png", "GP_BTN.PNG" },
     { "gamepad_button_small.png", "GP_BTNSM.PNG" },
-    { "gamepad_button_background.png", "GP_BTNBG.PNG" },
+    { "gamepad_button_backg", "GP_BTNBG.PNG" },
     { "gamepad_axis.png", "GP_AXIS.PNG" },
     { "gamepad_axis_arrow.png", "GP_AXARW.PNG" },
     { "gamepad_wired.png", "GP_WIRED.PNG" },

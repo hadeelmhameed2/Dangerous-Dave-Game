@@ -22,6 +22,7 @@ constexpr int   kEndStateFrames   = 150;
 constexpr int   kDoorAnimFrames   = 48;
 constexpr int   kPlayerW = 28;
 constexpr int   kPlayerH = 32;
+constexpr float kPlayerRenderScale = 1.5f;
 constexpr int   kEnemyW  = 32;
 constexpr int   kEnemyH  = 32;
 
@@ -34,19 +35,19 @@ constexpr int   kEnemyH  = 32;
     static const char* kLevel1[kLevelRows] = {
         //   0         1         2         3         4         5         6         7         8         9
         //   0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
-        "                                                                                                    ", // 0
-        "                                    ^                                             ^                 ", // 1
-        "                                   BBB                                           BBB                ", // 2
-        "                          *                                  o          ^       B   B               ", // 3
-        "             ^             F                  *             BBB        BBB     B     B       T      ", // 4
-        "            BBB                 o            BBB                     B   B   B       B     BBB     ", // 5
-        "                               BBB             *                F    B     B B         B            ", // 6
-        "          *         g                         BBB             *     B       B           B           ", // 7
-        "        BBBB       BBB                                       BBB                                    ", // 8
-        "                          BBB        *                                               E          D   ", // 9
-        "    o           E                   BBB             E    BB         o               BBB        BBB  ", // 10
-        "   BBB         BBB                                 BBB             BBB                            B ", // 11
-        "S       f f    BBB    w w w w w            ff             w w w           f f            f f      B ", // 12
+        "                                                                                                     ", // 0
+        "                                    ^                                             ^                  ", // 1
+        "                                   BBB                                           BBB                 ", // 2
+        "                          *                               o         ^           B   B                ", // 3
+        "             ^             F               *             BBB       BBB        B       B        T     ", // 4
+        "            BBB                 o         BBB                     B   B  BBBB           B     BBB    ", // 5
+        "                               BBB             *                F                                    ", // 6
+        "          *         g                         BBB             *                                      ", // 7
+        "        BBBB       BBB                                       BBB                                     ", // 8
+        "                          BBB        *                                               E            ff ", // 9
+        "    o           E                   BBB             E    BB         o               BBB         BBBB ", // 10
+        "   BBB         BBB                                 BBB             BBB                            DB ", // 11
+        "S       f f    BBB w w w w w w            ff            w w w w w          f f             fff     B ", // 12
         "GGGGGGGGGGGGGGGGGGwwwwwwwwwwwwwGGGGGGGGGGGGGGGGGGGGGGGGGwwwwwwwwwGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", // 13
     };
 inline float worldToScreenX(float wx, float camX) { return wx - camX; }
@@ -369,6 +370,32 @@ bagel::ent_type Game::spawnDoor(int col, int row)
     return e.entity();
 }
 
+bagel::ent_type Game::spawnExplosion(float x, float y)
+{
+    if (!m_tex.explosion[0] && !m_tex.explosion[1]) return bagel::ent_type{ {-1} };
+
+    Position pos{x, y};
+    Box      box{32.0f, 32.0f};
+
+    Sprite spr;
+    spr.tex = m_tex.explosion[0] ? m_tex.explosion[0] : m_tex.explosion[1];
+    spr.z = 9;
+
+    Anim a;
+    a.frameCount = 2;
+    a.delay = 5;
+    a.playing = true;
+    a.frames[0] = m_tex.explosion[0] ? m_tex.explosion[0] : spr.tex;
+    a.frames[1] = m_tex.explosion[1] ? m_tex.explosion[1] : a.frames[0];
+
+    ExplosionData ex;
+    ex.ttl = 12;
+
+    bagel::Entity e = bagel::Entity::create();
+    e.addAll(pos, box, spr, a, ex);
+    return e.entity();
+}
+
 bagel::ent_type Game::spawnBullet(float x, float y, int dir, bool fromPlayer)
 {
     Position pos{x, y};
@@ -661,6 +688,7 @@ void Game::bullet_system()
                 bagel::Storage<PlayerData>::type::get(m_player).score += 100;
                 ed.alive = false; kill(e);
                 bd.alive = false; kill(b);
+                spawnExplosion(ep.x, ep.y);
                 break;
             }
         }
@@ -729,6 +757,37 @@ void Game::anim_system()
                 a.counter = 0;
                 a.idx = (a.idx + 1) % a.frameCount;
                 auto& spr = bagel::Storage<Sprite>::type::get(m_trophy);
+                if (a.frames[a.idx]) spr.tex = a.frames[a.idx];
+            }
+        }
+    }
+
+    static const bagel::Mask explosionMask = bagel::MaskBuilder()
+        .set<ExplosionData>()
+        .set<Anim>()
+        .set<Sprite>()
+        .build();
+
+    for (bagel::Entity e = bagel::Entity::first(); !e.eof(); e.next())
+    {
+        if (!e.test(explosionMask)) continue;
+        auto& ex = e.get<ExplosionData>();
+        auto& a = e.get<Anim>();
+        auto& spr = e.get<Sprite>();
+
+        if (--ex.ttl <= 0)
+        {
+            e.destroy();
+            continue;
+        }
+
+        if (a.frameCount > 0 && a.playing)
+        {
+            ++a.counter;
+            if (a.counter >= a.delay)
+            {
+                a.counter = 0;
+                a.idx = (a.idx + 1) % a.frameCount;
                 if (a.frames[a.idx]) spr.tex = a.frames[a.idx];
             }
         }
@@ -927,9 +986,16 @@ void Game::update()
 
 void Game::renderBackground()
 {
-    // Solid sky — no parallax, no texture.
+    // Clear with black first (for safety).
     SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
     SDL_RenderClear(m_renderer);
+
+    // Render background texture as single full-screen image.
+    if (m_tex.background)
+    {
+        SDL_FRect dst{0.0f, 0.0f, (float)kScreenW, (float)kScreenH};
+        SDL_RenderTexture(m_renderer, m_tex.background, nullptr, &dst);
+    }
 }
 
 void Game::renderTiles()
@@ -981,6 +1047,17 @@ void Game::renderEntity(bagel::ent_type ent)
         worldToScreenY(pos.y),
         box.w, box.h
     };
+
+    if (ent.id == m_player.id)
+    {
+        // Visual-only upscale for Dave: keep feet anchored and physics unchanged.
+        const float oldW = dst.w;
+        const float oldH = dst.h;
+        dst.w = oldW * kPlayerRenderScale;
+        dst.h = oldH * kPlayerRenderScale;
+        dst.x -= (dst.w - oldW) * 0.5f;
+        dst.y -= (dst.h - oldH);
+    }
 
     SDL_SetTextureColorMod(spr.tex, spr.tintR, spr.tintG, spr.tintB);
     if (spr.flipH)
@@ -1042,7 +1119,10 @@ void Game::renderHud()
     const auto& pdat = bagel::Storage<PlayerData>::type::get(m_player);
 
     const float labelW = 60.0f, labelH = 14.0f;
+    const float levelLabelW = 206.0f, levelLabelH = 17.0f;
     const float digitW = 20.0f, digitH = 24.0f;
+    const float livesLabelH = 28.0f;
+    const float livesLabelW = livesLabelH * (91.0f / 94.0f);
 
     float x = 8.0f;
     if (m_tex.labelScore)
@@ -1061,9 +1141,9 @@ void Game::renderHud()
 
     if (m_tex.labelLevel)
     {
-        SDL_FRect dst{ x, 8.0f, labelW, labelH };
+        SDL_FRect dst{ x, 8.0f, levelLabelW, levelLabelH };
         SDL_RenderTexture(m_renderer, m_tex.labelLevel, nullptr, &dst);
-        x += labelW + 4.0f;
+        x += levelLabelW + 4.0f;
     }
     else
     {
@@ -1075,9 +1155,9 @@ void Game::renderHud()
 
     if (m_tex.labelLives)
     {
-        SDL_FRect dst{ x, 8.0f, labelW, labelH };
+        SDL_FRect dst{ x, 6.0f, livesLabelW, livesLabelH };
         SDL_RenderTexture(m_renderer, m_tex.labelLives, nullptr, &dst);
-        x += labelW + 4.0f;
+        x += livesLabelW + 4.0f;
     }
     else
     {
@@ -1134,6 +1214,8 @@ void Game::draw_system()
         .set<PickupData>().set<Position>().set<Box>().set<Sprite>().build();
     static const bagel::Mask enemyMask = bagel::MaskBuilder()
         .set<EnemyData>().set<Position>().set<Box>().set<Sprite>().build();
+    static const bagel::Mask explosionMask = bagel::MaskBuilder()
+        .set<ExplosionData>().set<Position>().set<Box>().set<Sprite>().build();
     static const bagel::Mask bulletMask = bagel::MaskBuilder()
         .set<BulletData>().set<Position>().set<Box>().set<Sprite>().build();
 
@@ -1144,6 +1226,8 @@ void Game::draw_system()
         if (e.test(enemyMask)) renderEntity(e.entity());
     for (bagel::Entity e = bagel::Entity::first(); !e.eof(); e.next())
         if (e.test(bulletMask)) renderEntity(e.entity());
+    for (bagel::Entity e = bagel::Entity::first(); !e.eof(); e.next())
+        if (e.test(explosionMask)) renderEntity(e.entity());
     if (m_player.id >= 0) renderEntity(m_player);
 
     renderHud();

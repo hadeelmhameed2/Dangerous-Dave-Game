@@ -137,6 +137,10 @@ struct BulletData {
     bool alive = true;
 };
 
+struct ExplosionData {
+    int ttl = 12;
+};
+
 // Box2D body handle for dynamic entities (player, enemies, bullets).
 struct Collider { b2BodyId b; };
 
@@ -167,6 +171,7 @@ namespace bagel {
     template <> struct Storage<::dave::DoorData>   { using type = SparseStorage<::dave::DoorData>; };
     template <> struct Storage<::dave::EnemyData>  { using type = SparseStorage<::dave::EnemyData>; };
     template <> struct Storage<::dave::BulletData> { using type = SparseStorage<::dave::BulletData>; };
+    template <> struct Storage<::dave::ExplosionData> { using type = SparseStorage<::dave::ExplosionData>; };
     template <> struct Storage<::dave::Collider>   { using type = SparseStorage<::dave::Collider>; };
     template <> struct Storage<::dave::Intent>     { using type = PackedStorage<::dave::Intent>; };
     template <> struct Storage<::dave::Keys>       { using type = PackedStorage<::dave::Keys>; };
@@ -179,6 +184,7 @@ struct TextureRegistry {
     SDL_Texture* daveStand = nullptr;
     std::array<SDL_Texture*, 4> daveWalk{};   // dave1..dave4
     SDL_Texture* daveJump = nullptr;          // dave5 (or fall back to dave4)
+    SDL_Texture* background = nullptr;
     SDL_Texture* ground = nullptr;
     SDL_Texture* brick = nullptr;
     std::array<SDL_Texture*, 4> fire{};
@@ -190,6 +196,7 @@ struct TextureRegistry {
     std::array<SDL_Texture*, 5> cup{};
     SDL_Texture* doorClosed = nullptr;
     SDL_Texture* enemy = nullptr;
+    std::array<SDL_Texture*, 2> explosion{};
     SDL_Texture* bullet = nullptr;
     SDL_Texture* monsterBullet = nullptr;
     std::array<SDL_Texture*, 10> digit{};
@@ -215,6 +222,7 @@ private:
     bagel::ent_type spawnPickup(int col, int row, PickupKind kind);
     bagel::ent_type spawnEnemy(int col, int row, EnemyKind kind = EnemyKind::GROUND);
     bagel::ent_type spawnDoor(int col, int row);
+    bagel::ent_type spawnExplosion(float x, float y);
     bagel::ent_type spawnBullet(float x, float y, int dir, bool fromPlayer);
 
     void input_system();

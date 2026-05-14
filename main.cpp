@@ -79,8 +79,9 @@ void loadAll(SDL_Renderer* renderer, dave::TextureRegistry& reg)
     if (!reg.daveJump) reg.daveJump = reg.daveWalk[3] ? reg.daveWalk[3] : reg.daveStand;
     for (auto& w : reg.daveWalk) if (!w) w = reg.daveStand;
 
+    reg.background = L("blackbackround.png", false);
     reg.ground = L("ground.png");
-    reg.brick  = L("brick.png");
+    reg.brick  = L("brick.png", false);
 
     reg.fire[0] = L("fire1.png", false);
     reg.fire[1] = L("fire2.png", false);
@@ -113,6 +114,10 @@ void loadAll(SDL_Renderer* renderer, dave::TextureRegistry& reg)
     reg.doorClosed = L("door.png");
 
     reg.enemy         = L("monster.png", false);
+    reg.explosion[0]  = L("explosion1.png", false);
+    reg.explosion[1]  = L("explosion2.png", false);
+    if (!reg.explosion[0]) reg.explosion[0] = reg.explosion[1];
+    if (!reg.explosion[1]) reg.explosion[1] = reg.explosion[0];
     reg.bullet        = L("weapon.png", false);
     reg.monsterBullet = L("monsterBullet.png", false);
     if (!reg.monsterBullet) reg.monsterBullet = reg.bullet;
